@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jeu de Voiture</title>
+  <style>
+    * {margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
+    body {
+      display:flex;justify-content:center;align-items:center;
+      height:100vh;background:#111;color:#fff;
+    }
+    #game {
+      position:relative;
+      width:300px;height:600px;
+      background:#333;overflow:hidden;
+      border:3px solid #555;border-radius:10px;
+    }
+    #car {
+      position:absolute;bottom:20px;left:130px;
+      width:40px;height:80px;background:red;border-radius:5px;
+    }
+    .enemy {
+      position:absolute;width:40px;height:80px;background:yellow;border-radius:5px;
+    }
+    .roadLine {
+      position:absolute;width:10px;height:80px;background:white;
+      left:145px;opacity:0.7;
+      animation: moveLine 1s linear infinite;
+    }
+    @keyframes moveLine {from{top:-80px;} to{top:600px;}}
+    #scoreBoard {
+      position:absolute;top:10px;left:10px;
+      font-size:18px;
+      background:rgba(0,0,0,0.5);
+      padding:5px 10px;border-radius:5px;
+      z-index:10;
+    }
+    #startScreen {
+      position:absolute;top:0;left:0;width:100%;height:100%;
+      background:rgba(0,0,0,0.85);color:white;
+      display:flex;flex-direction:column;justify-content:center;align-items:center;
+      text-align:center;z-index:20;
+    }
+    #startScreen button {
+      margin-top:10px;padding:10px 20px;background:#28a745;color:white;
+      border:none;border-radius:5px;font-size:18px;cursor:pointer;
+    }
+    #mobileControls {
+      position:absolute;bottom:10px;left:0;width:100%;
+      display:flex;justify-content:space-around;z-index:15;
+    }
+    .btnControl {
+      background:#555;color:white;font-size:22px;
+      border:none;padding:15px 25px;border-radius:10px;
+      opacity:0.9;cursor:pointer;user-select:none;
+    }
+    .btnControl:active {background:#777;}
+    @media(max-width:600px){#game{width:90vw;height:80vh;}#car,.enemy{width:10vw;height:20vh;}.roadLine{left:45%;}}
+  </style>
+</head>
+<body>
+<div id="game">
+  <div id="scoreBoard">Score : <span id="score">0</span></div>
+  <div id="startScreen">
+    <h2>🚗 Jeu de Voiture</h2>
+    <p>Évite les voitures jaunes !</p>
+    <button id="startBtn">▶️ Démarrer</button>
+  </div>
+  <div id="mobileControls" style="display:none;">
+    <button class="btnControl" id="leftBtn">⬅️</button>
+    <button class="btnControl" id="rightBtn">➡️</button>
+  </div>
+</div>
+
+<script>
+const game=document.getElementById("game");
+const scoreEl=document.getElementById("score");
+const startScreen=document.getElementById("startScreen");
+const startBtn=document.getElementById("startBtn");
+const mobileControls=document.getElementById("mobileControls");
+const leftBtn=document.getElementById("leftBtn");
+const rightBtn=document.getElementById("rightBtn");
+
+let player={x:130,y:500,speed:5,score:0};
+let keys={ArrowLeft:false,ArrowRight:false};
+let gameActive=false;
+
+// Clavier
+document.addEventListener("keydown", e=> keys[e.key]=true);
+document.addEventListener("keyup", e=> keys[e.key]=false);
+
+// Boutons tactiles
+leftBtn.addEventListener("touchstart", ()=> keys.ArrowLeft=true);
+leftBtn.addEventListener("touchend", ()=> keys.ArrowLeft=false);
+rightBtn.addEventListener("touchstart", ()=> keys.ArrowRight=true);
+rightBtn.addEventListener("touchend", ()=> keys.ArrowRight=false);
+
+startBtn.addEventListener("click", startGame);
+
+function startGame(){
+  startScreen.style.display="none";
+  mobileControls.style.display="flex";
+  game.innerHTML='<div id="scoreBoard">Score : <span id="score">0</span></div>';
+  game.appendChild(mobileControls);
+  player={x:130,y:500,speed:5,score:0};
+  keys={ArrowLeft:false,ArrowRight:false};
+  gameActive=true;
+
+  const car=document.createElement("div");
+  car.id="car";
+  game.appendChild(car);
+
+  for(let i=0;i<6;i++){
+    const line=document.createElement("div");
+    line.classList.add("roadLine");
+    line.style.top=(i*120)+"px";
+    game.appendChild(line);
+  }
+
+  for(let i=0;i<3;i++){
+    const enemy=document.createElement("div");
+    enemy.classList.add("enemy");
+    enemy.style.top=(i*200)*-1 + "px";
+    enemy.style.left=Math.floor(Math.random()*260)+"px";
+    game.appendChild(enemy);
+  }
+
+  window.requestAnimationFrame(playGame);
+}
+
+function playGame(){
+  const car=document.getElementById("car");
+  if(!gameActive) return;
+
+  moveLines();
+  moveEnemies(car);
+
+  if(keys.ArrowLeft && player.x>0) player.x-=player.speed;
+  if(keys.ArrowRight && player.x<260) player.x+=player.speed;
+
+  car.style.left=player.x+"px";
+
+  player.score++;
+  scoreEl.textContent=player.score;
+
+  if(gameActive) window.requestAnimationFrame(playGame);
+}
+
+function moveLines(){
+  const lines=document.querySelectorAll(".roadLine");
+  lines.forEach(line=>{
+    let top=parseInt(line.style.top);
+    if(top>=600) top=-80;
+    line.style.top=(top+player.speed)+"px";
+  });
+}
+
+function moveEnemies(car){
+  const enemies=document.querySelectorAll(".enemy");
+  enemies.forEach(enemy=>{
+    let top=parseInt(enemy.style.top);
+    if(top>=600){
+      top=-200;
+      enemy.style.left=Math.floor(Math.random()*260)+"px";
+    }
+    enemy.style.top=(top+player.speed)+"px";
+
+    if(checkCollision(car,enemy)) gameOver();
+  });
+}
+
+function checkCollision(a,b){
+  const aRect=a.getBoundingClientRect();
+  const bRect=b.getBoundingClientRect();
+  return !(aRect.top>bRect.bottom||aRect.bottom<bRect.top||aRect.right<bRect.left||aRect.left>bRect.right);
+}
+
+function gameOver(){
+  gameActive=false;
+  mobileControls.style.display="none";
+  startScreen.style.display="flex";
+  startScreen.innerHTML=`
+    <h2>💥 Tu as perdu !</h2>
+    <p>Score final : ${player.score}</p>
+    <button id="restartBtn">🔁 Redémarrer</button>
+  `;
+  document.getElementById("restartBtn").onclick=startGame;
+}
+</script>
+</body>
+</html>
